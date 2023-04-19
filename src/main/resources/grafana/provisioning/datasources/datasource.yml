@@ -1,0 +1,22 @@
+apiVersion: 1
+
+deleteDatasources:
+  - name: prometheus
+    orgId: 1
+
+datasources:
+  - name: prometheus
+    type: prometheus
+    orgId: 1
+    url: http://prometheus:9090
+    user:
+    password:
+    database:
+    basicAuth: false
+    isDefault: true
+    jsonData:
+      httpMethod: POST
+      manageAlerts: true
+      prometheusType: Prometheus
+      prometheusVersion: 2.37.0
+    editable: true

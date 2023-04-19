@@ -1,0 +1,113 @@
+services:
+
+  prometheus:
+    image: "prom/prometheus"
+    container_name: prometheus
+    depends_on:
+      - app
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./src/main/resources/prometheus/:/etc/prometheus/
+      - prometheus-storage:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+    networks:
+      - share
+
+  grafana:
+    image: "grafana/grafana"
+    ports:
+      - "3000:3000"
+    container_name: grafana
+    volumes:
+      - grafana-storage:/var/lib/grafana
+      - ./src/main/resources/grafana/provisioning/:/etc/grafana/provisioning/
+    depends_on:
+      - prometheus
+      - app
+    env_file:
+      - ./src/main/resources/grafana/config.monitoring
+    networks:
+      - share
+
+  app:
+    image: "zidquocviet1/monitor:1.3"
+    container_name: monitoring
+    environment:
+      - "SPRING_PROFILES_ACTIVE=prod"
+    depends_on:
+      - redis
+    labels:
+      - "traefik.http.routers.monitor.rule=Host(`viet.monitor.com`)"
+      - "traefik.http.services.monitor.loadbalancer.server.port=8081"
+      - "traefik.docker.network=traefik"
+    ports:
+      - "8081:8081"
+    networks:
+      - share
+      - traefik
+
+  redis:
+    image: "redis:6.2.11-alpine"
+    ports:
+      - "6379:6379"
+    container_name: redis
+    networks:
+      - share
+
+  cadvisor:
+    image: gcr.io/cadvisor/cadvisor:v0.47.1
+    container_name: cadvisor
+    ports:
+      - "18080:8080"
+    volumes:
+      - /:/rootfs:ro
+      - /var/run:/var/run:rw
+      - /sys:/sys:ro
+      - /var/lib/docker/:/var/lib/docker:ro
+    depends_on:
+      - redis
+    networks:
+      - share
+
+  alert-manager:
+    image: prom/alertmanager
+    container_name: alert-manager
+    ports:
+      - "9093:9093"
+    volumes:
+      - ./src/main/resources/alertmanager/:/etc/alertmanager/
+    networks:
+      - share
+    command:
+      - '--config.file=/etc/alertmanager/config.yml'
+      - '--storage.path=/alertmanager'
+
+  reverse-proxy:
+    # The official v2 Traefik docker image
+    image: traefik:v2.9
+    # Enables the web UI and tells Traefik to listen to docker
+    command: --api.insecure=true --providers.docker
+    container_name: traefik-reverse-proxy
+    ports:
+      # The HTTP port
+      - "80:80"
+      # The Web UI (enabled by --api.insecure=true)
+      - "8080:8080"
+    volumes:
+      # So that Traefik can listen to the Docker events
+      - /var/run/docker.sock:/var/run/docker.sock
+    networks:
+      - traefik
+
+volumes:
+  grafana-storage: {}
+  prometheus-storage: {}
+
+networks:
+  share:
+    driver: bridge
+  traefik:
+    driver: bridge

@@ -1,0 +1,103 @@
+management:
+  prometheus:
+    metrics:
+      export:
+        enabled: true
+  datadog:
+    metrics:
+      export:
+        api-key: 5ce49d8fb0e3351be5b5947e61fe768f
+        enabled: false
+
+  endpoints:
+    web:
+      exposure:
+        include: "*"
+  endpoint:
+    health:
+      show-details: always
+    prometheus:
+      enabled: true
+    metrics:
+      enabled: true
+    circuitbreakers:
+        enabled: true
+    ratelimiters:
+      enabled: true
+
+resilience4j:
+  circuitbreaker:
+    metrics:
+      enabled: true
+    instances:
+      CircuitBreakerService:
+        failure-rate-threshold: 50
+        sliding-window-size: 3
+        sliding-window-type: COUNT_BASED
+        permitted-number-of-calls-in-half-open-state: 10
+        wait-duration-in-open-state: 5s
+        automatic-transition-from-open-to-half-open-enabled: true
+
+  rate-limiter:
+    metrics:
+      enabled: true
+    instances:
+      checkUserExists:
+        register-health-indicator: true
+        limit-for-period: 10
+        limit-refresh-period: 30s
+        timeout-duration: 0s
+        allow-health-indicator-to-fail: true
+        subscribe-for-events: true
+        event-consumer-buffer-size: 50
+
+      registration:
+        register-health-indicator: true
+        limit-for-period: 6
+        limit-refresh-period: 60s
+        timeout-duration: 0s
+        allow-health-indicator-to-fail: true
+        subscribe-for-events: true
+        event-consumer-buffer-size: 50
+
+  bulkhead:
+    metrics:
+      enabled: true
+    instances:
+      spotify:
+        max-concurrent-calls: 2
+        max-wait-duration: 1s
+
+monitor:
+  resilience4j:
+    circuit-breaker:
+      failure-rate-threshold: 50
+      sliding-window-size: 4
+      sliding-window-type: COUNT_BASED
+      permitted-number-of-calls-in-half-open-state: 10
+      wait-duration-in-open-state: 5s
+      automatic-transition-from-open-to-half-open-enabled: true
+
+  spotify:
+    client-id: 06a4ef6001d5490ca84c91a6b5c18da1
+    client-secret: 6284ead8e0c042de973100587980bc79
+
+spring:
+  cloud:
+    openfeign:
+      client:
+        config:
+          spotify-auth:
+            connect-timeout: 30000
+            read-timeout: 30000
+            logger-level: full
+            dismiss404: false
+            url: https://accounts.spotify.com/api/token
+          spotify:
+            connect-timeout: 10000
+            read-timeout: 10000
+            logger-level: headers
+            dismiss404: false
+            url: https://api.spotify.com
+            request-interceptors:
+              - com.mqv.monitor.feign.spotify.AuthorizationRequestInterceptor

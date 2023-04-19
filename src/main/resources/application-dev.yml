@@ -1,0 +1,15 @@
+monitor:
+  redis:
+    url: localhost
+    port: 6379
+
+logging:
+  level:
+    root: info
+    io.micrometer.*: trace
+    com.mqv.monitor: debug
+    io.lettuce.*: debug
+    io.github.resilience4j.*: debug
+
+server:
+  port: 80
