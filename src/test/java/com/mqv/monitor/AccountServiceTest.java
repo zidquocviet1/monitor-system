@@ -2,12 +2,15 @@ package com.mqv.monitor;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.mqv.monitor.dto.AccountDTO;
 import com.mqv.monitor.entity.AccountEntity;
 import com.mqv.monitor.ratelimit.RateLimiter;
 import com.mqv.monitor.ratelimit.RateLimiterProvider;
 import com.mqv.monitor.ratelimit.Resilience4jRateLimiterProvider;
 import com.mqv.monitor.redis.FaultToleranceRedisClient;
 import com.mqv.monitor.redis.cache.AccountRedisCacheManager;
+import com.mqv.monitor.redis.cache.RedisCacheManager;
+import com.mqv.monitor.redis.cache.RedisCacheProvider;
 import com.mqv.monitor.repository.AccountRepository;
 import com.mqv.monitor.service.impl.AccountServiceImpl;
 import io.lettuce.core.RedisException;
@@ -27,7 +30,7 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.mockito.Mockito.*;
 
 @SpringBootTest
-@ActiveProfiles("dev")
+@ActiveProfiles("test")
 public class AccountServiceTest {
     @Mock
     private AccountRepository accountRepository;
@@ -67,8 +70,9 @@ public class AccountServiceTest {
         when(objectMapper.readValue(accountJson, AccountEntity.class)).thenReturn(accountEntity);
 
         var accountRedisCacheManager = new AccountRedisCacheManager(faultToleranceRedisClient, objectMapper);
+        var redisCacheProvider = mock(RedisCacheProvider.class);
         var accountService = new AccountServiceImpl(accountRepository, rateLimiterProvider,
-                resilience4jRateLimiterProvider, accountRedisCacheManager);
+                resilience4jRateLimiterProvider, accountRedisCacheManager, redisCacheProvider);
         var account = accountService.getAccount(accountId);
 
         verify(checkAccountExistsRateLimiter).validate(String.valueOf(accountId));
@@ -103,8 +107,9 @@ public class AccountServiceTest {
         when(accountRepository.findAccountById(accountId)).thenReturn(Optional.of(accountEntity));
 
         var accountRedisCacheManager = new AccountRedisCacheManager(faultToleranceRedisClient, objectMapper);
+        var redisCacheProvider = mock(RedisCacheProvider.class);
         var accountService = new AccountServiceImpl(accountRepository, rateLimiterProvider,
-                resilience4jRateLimiterProvider, accountRedisCacheManager);
+                resilience4jRateLimiterProvider, accountRedisCacheManager, redisCacheProvider);
         var account = accountService.getAccount(accountId);
 
         verify(checkAccountExistsRateLimiter).validate(String.valueOf(accountId));
@@ -112,5 +117,37 @@ public class AccountServiceTest {
         assertNotNull(account);
         assertEquals(account.accountId(), accountId);
         assertEquals(account.fullName(), "boot spring");
+    }
+
+    @Test
+    public void testCreateAccount() {
+        var username = "vietmai";
+        var password = "maiviet";
+        var firstName = "viet";
+        var lastName = "mai";
+        var accountEntity = new AccountEntity(100, firstName, lastName);
+
+        var registrationRateLimiter = mock(RateLimiter.class);
+        var faultToleranceRedisClient = mock(FaultToleranceRedisClient.class);
+        var redisCacheProvider = mock(RedisCacheProvider.class);
+        var accountCacheManager = mock(RedisCacheManager.class);
+
+        when(redisCacheProvider.getAccountCacheManager()).thenReturn(accountCacheManager);
+
+        doNothing().when(accountCacheManager).set(anyString(), any(Function.class));
+
+        when(rateLimiterProvider.getRegistrationRateLimit()).thenReturn(registrationRateLimiter);
+        when(accountRepository.insertAccount(username, password, firstName, lastName)).thenReturn(accountEntity);
+
+        var accountRedisCacheManager = new AccountRedisCacheManager(faultToleranceRedisClient, objectMapper);
+        var accountService = new AccountServiceImpl(accountRepository, rateLimiterProvider,
+                resilience4jRateLimiterProvider, accountRedisCacheManager, redisCacheProvider);
+        AccountDTO account = accountService.createAccount(username, password, firstName, lastName);
+
+        verify(accountCacheManager, times(1)).set(anyString(), any(AccountEntity.class));
+        verify(registrationRateLimiter).validate(username);
+
+        assertEquals(100, account.accountId());
+        assertEquals("viet mai", account.fullName());
     }
 }

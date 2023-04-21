@@ -5,6 +5,7 @@ import com.mqv.monitor.entity.AccountEntity;
 import com.mqv.monitor.ratelimit.RateLimiterProvider;
 import com.mqv.monitor.ratelimit.Resilience4jRateLimiterProvider;
 import com.mqv.monitor.redis.cache.AccountRedisCacheManager;
+import com.mqv.monitor.redis.cache.RedisCacheProvider;
 import com.mqv.monitor.repository.AccountRepository;
 import com.mqv.monitor.service.AccountService;
 import io.github.resilience4j.ratelimiter.RateLimiter;
@@ -32,13 +33,16 @@ public class AccountServiceImpl implements AccountService {
     private final RateLimiterProvider rateLimiterProvider;
     private final Resilience4jRateLimiterProvider resilience4jRateLimiterProvider;
     private final AccountRedisCacheManager accountRedisCacheManager;
+    private final RedisCacheProvider redisCacheProvider;
 
     public AccountServiceImpl(AccountRepository accountRepository, RateLimiterProvider rateLimiterProvider,
-                              Resilience4jRateLimiterProvider resilience4jRateLimiterProvider, AccountRedisCacheManager accountRedisCacheManager) {
+                              Resilience4jRateLimiterProvider resilience4jRateLimiterProvider, AccountRedisCacheManager accountRedisCacheManager,
+                              RedisCacheProvider redisCacheProvider) {
         this.accountRepository = accountRepository;
         this.rateLimiterProvider = rateLimiterProvider;
         this.resilience4jRateLimiterProvider = resilience4jRateLimiterProvider;
         this.accountRedisCacheManager = accountRedisCacheManager;
+        this.redisCacheProvider = redisCacheProvider;
     }
 
     @Override
@@ -81,6 +85,8 @@ public class AccountServiceImpl implements AccountService {
                             Tag.of(COUNTRY_CODE_TAG_NAME, "VN"),
                             Tag.of(USER_AGENT_TAG_NAME, "Android")))
                     .increment();
+
+            redisCacheProvider.getAccountCacheManager().set(String.valueOf(createdAccount.id()), createdAccount);
 
             return new AccountDTO(createdAccount.id(), String.join(" ",
                     createdAccount.firstName(), createdAccount.lastName()));

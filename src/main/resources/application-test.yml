@@ -1,0 +1,4 @@
+monitor:
+  redis:
+    url: test
+    port: 1234

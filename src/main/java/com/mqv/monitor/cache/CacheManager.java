@@ -1,8 +1,8 @@
-package com.mqv.monitor.redis;
+package com.mqv.monitor.cache;
 
 import java.util.Optional;
 
-public interface RedisCacheManager<K, T> {
+public interface CacheManager<K, T> {
     void delete(K key);
 
     void set(K key, T value);

@@ -1,7 +1,9 @@
-package com.mqv.monitor.redis;
+package com.mqv.monitor.redis.cache;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.mqv.monitor.cache.CacheManager;
+import com.mqv.monitor.redis.FaultToleranceRedisClient;
 import io.lettuce.core.RedisException;
 import io.lettuce.core.api.sync.RedisCommands;
 import io.micrometer.core.instrument.Metrics;
@@ -10,7 +12,7 @@ import org.slf4j.LoggerFactory;
 
 import java.util.Optional;
 
-public abstract class AbstractRedisCacheManager<K, T> implements RedisCacheManager<K, T> {
+public abstract class AbstractRedisCacheManager<K, T> implements CacheManager<K, T> {
     private static final Logger logger = LoggerFactory.getLogger(AbstractRedisCacheManager.class);
 
     protected final FaultToleranceRedisClient cacheRedisClient;
